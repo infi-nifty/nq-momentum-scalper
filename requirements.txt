@@ -1,0 +1,4 @@
+backtrader
+yfinance
+pandas
+numpy

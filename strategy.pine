@@ -1,0 +1,95 @@
+//@version=5
+strategy("NQ Opening Momentum SAR [Python Port]", overlay=true, process_orders_on_close=true, calc_on_every_tick=false)
+
+// --- INPUTS ---
+dailyLossLimit = input.float(2000.0, "Daily Loss Limit ($)")
+trailAtr = input.float(3.0, "Trailing Stop (ATR Multiples)")
+volMult = input.float(3.0, "Volume Spike Multiplier")
+atrLength = input.int(14, "ATR Length")
+volLength = input.int(20, "Volume MA Length")
+
+// --- INDICATORS ---
+atr = ta.atr(atrLength)
+volMA = ta.sma(volume, volLength)
+
+// --- SESSION LOGIC ---
+// We want to enter AFTER the first 5 mins (09:30-09:35) are done.
+// So trading window is 09:35 to 15:45 (Exchange Time)
+sessionString = "0935-1545" 
+inSession = not na(time(timeframe.period, sessionString))
+isSessionStart = inSession and not inSession[1]
+isSessionEnd = not inSession and inSession[1]
+
+// --- STATE MANAGEMENT ---
+var float dailyPnL = 0.0
+var float startOfDayEquity = 0.0
+var bool halted = false
+var float highestHigh = 0.0
+var float lowestLow = 0.0
+
+// Reset Daily Logic
+if isSessionStart
+    startOfDayEquity := strategy.equity
+    dailyPnL := 0.0
+    halted := false
+
+// Update Daily PnL (Closed Trades + Open PnL roughly)
+// Pine Script doesn't track "Daily" natively easily, so we approximate with equity change
+currentDailyPnL = strategy.equity - startOfDayEquity + strategy.openprofit
+
+// Loss Limit Check
+if not halted and currentDailyPnL < -dailyLossLimit
+    strategy.close_all(comment="Daily Loss Limit")
+    halted := true
+
+// --- STRATEGY LOGIC ---
+
+// 1. Initial Entry (First bar of session)
+if isSessionStart and not halted
+    if close > open
+        strategy.entry("Long Open", strategy.long)
+        highestHigh := high
+    else
+        strategy.entry("Short Open", strategy.short)
+        lowestLow := low
+
+// 2. Track Extremes during trade
+if strategy.position_size > 0
+    highestHigh := math.max(highestHigh, high)
+if strategy.position_size < 0
+    lowestLow := math.min(lowestLow, low)
+
+// 3. Reversal Logic (SAR)
+if inSession and not halted and strategy.position_size != 0
+    
+    // A. Trailing Stop Reversal
+    revDist = atr * trailAtr
+    
+    // Long -> Short
+    if strategy.position_size > 0
+        if close < (highestHigh - revDist)
+            strategy.entry("Short Trail", strategy.short)
+            lowestLow := low // Reset for new direction
+
+    // Short -> Long
+    if strategy.position_size < 0
+        if close > (lowestLow + revDist)
+            strategy.entry("Long Trail", strategy.long)
+            highestHigh := high // Reset
+            
+    // B. Volume Spike Reversal
+    isVolSpike = volume > (volMA * volMult)
+    
+    // Long -> Short (Spike + Bearish Candle)
+    if strategy.position_size > 0 and isVolSpike and close < close[1]
+        strategy.entry("Short Vol", strategy.short)
+        lowestLow := low
+
+    // Short -> Long (Spike + Bullish Candle)
+    if strategy.position_size < 0 and isVolSpike and close > close[1]
+        strategy.entry("Long Vol", strategy.long)
+        highestHigh := high
+
+// 4. End of Day Exit
+if isSessionEnd
+    strategy.close_all(comment="EOD")
