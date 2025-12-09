@@ -17,13 +17,14 @@ A futures trading strategy designed for the Nasdaq-100 (NQ), focusing on catchin
 
 3.  **Risk Management**:
     *   **Daily Loss Limit**: Hard stop at **$2,000** loss per day. If hit, all positions are closed and trading halts until the next day.
-    *   **Position Size**: Fixed at 1 Contract (configurable).
+    *   **Position Size**: Fixed at 1 MNQ Contract (Micro).
 
-## Performance (Backtest)
-*   **Period**: Last 59 Days (Oct - Dec 2025)
-*   **Net Profit**: +$19,377.98 (+19.3%)
-*   **Win Rate**: ~35% (Trend following profile - winners pay for losers)
-*   **Drawdown**: ~18.5%
+## Performance (Backtest Benchmark)
+*   **Period**: Last 60 Days (Oct - Dec 2025)
+*   **Net Profit**: +$1,945.17 (On $5,000 Starting Equity)
+*   **Win Rate**: ~35% (Trend following profile)
+*   **Drawdown**: ~33%
+*   *Note: Tested on MNQ (Micro NQ) settings.*
 
 ## How to Run
 
