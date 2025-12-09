@@ -16,12 +16,13 @@ A futures trading strategy designed for the Nasdaq-100 (NQ), focusing on catchin
         *   **Volume Spike**: If volume is **3.0x** the usage average AND the candle is counter-trend, reverse position immediately.
 
 3.  **Risk Management**:
-    *   **Daily Loss Limit**: Hard stop at **$2,000** loss per day. If hit, all positions are closed and trading halts until the next day.
+    *   **Daily Loss Limit**: Hard stop at **$200** loss per day. If hit, all positions are closed and trading halts until the next day.
     *   **Position Size**: Fixed at 1 MNQ Contract (Micro).
 
 ## Performance (Backtest Benchmark)
 *   **Period**: Last 60 Days (Oct - Dec 2025)
-*   **Net Profit**: +$1,945.17 (On $5,000 Starting Equity)
+*   **Initial Capital**: $5000
+*   **Net Profit**: +$1,945.17
 *   **Win Rate**: ~35% (Trend following profile)
 *   **Drawdown**: ~33%
 *   *Note: Tested on MNQ (Micro NQ) settings.*
