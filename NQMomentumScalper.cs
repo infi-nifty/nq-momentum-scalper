@@ -61,8 +61,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 				// IsInstantiatedOnEachOptimizationIteration	= true;
 				
 				// DEFAULT PARAMETERS
+				UseOrderFlow = true;
 				DailyLossLimit = 100; // $100 Limit for $1000 account (10%)
-				ContractSize = 2;     // RECOMMENDED: 2 Micro Contracts max for $1000. 10 is dangerous.
+				ContractSize = 1;     // RECOMMENDED: 1 Micro Contracts max for $5000. 10 is dangerous.
 				TrailATR = 3.0;
 				VolLength = 20;
 				VolMult = 3.0;
@@ -140,15 +141,40 @@ namespace NinjaTrader.NinjaScript.Strategies
 			// 3. INITIAL ENTRY (First Bar)
 			if (timeNow == startTime && Position.MarketPosition == MarketPosition.Flat)
 			{
-				if (Close[0] > Open[0])
+				bool orderFlowConfirmed = true;
+				
+				// Order Flow Filter (Ratio 1.2)
+				if (UseOrderFlow)
 				{
-					EnterLong(ContractSize, "LongOpen");
-					highestHigh = High[0];
+					// UpVolume = Volume on Up Ticks (Aggressive Buying Proxy)
+					// DownVolume = Volume on Down Ticks (Aggressive Selling Proxy)
+					// Note: Requires "Tick Replay" enabled on Data Series
+					if (Close[0] > Open[0])
+					{
+						// Valid Long only if Buying is > 1.2x Selling
+						if (UpVolume[0] < (DownVolume[0] * 1.2))
+							orderFlowConfirmed = false;
+					}
+					else
+					{
+						// Valid Short only if Selling is > 1.2x Buying
+						if (DownVolume[0] < (UpVolume[0] * 1.2))
+							orderFlowConfirmed = false;
+					}
 				}
-				else
+
+				if (orderFlowConfirmed)
 				{
-					EnterShort(ContractSize, "ShortOpen");
-					lowestLow = Low[0];
+					if (Close[0] > Open[0])
+					{
+						EnterLong(ContractSize, "LongOpen");
+						highestHigh = High[0];
+					}
+					else
+					{
+						EnterShort(ContractSize, "ShortOpen");
+						lowestLow = Low[0];
+					}
 				}
 				return;
 			}
@@ -171,7 +197,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				{
 					if (Close[0] < (highestHigh - revDist))
 					{
-						EnterShort(ContractSize, "TrailRevShort"); // Reverse
+						ExitLong(); // Close Long
+						EnterShort(ContractSize, "TrailRevShort"); // Open Short
 						lowestLow = Low[0];
 						reversalTriggered = true;
 					}
@@ -180,7 +207,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				{
 					if (Close[0] > (lowestLow + revDist))
 					{
-						EnterLong(ContractSize, "TrailRevLong"); // Reverse
+						ExitShort(); // Close Short
+						EnterLong(ContractSize, "TrailRevLong"); // Open Long
 						highestHigh = High[0];
 						reversalTriggered = true;
 					}
@@ -196,6 +224,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 						// Spike + Bearish Candle
 						if (isVolSpike && Close[0] < Close[1])
 						{
+							ExitLong();
 							EnterShort(ContractSize, "VolRevShort");
 							lowestLow = Low[0];
 						}
@@ -205,6 +234,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 						// Spike + Bullish Candle
 						if (isVolSpike && Close[0] > Close[1])
 						{
+							ExitShort();
 							EnterLong(ContractSize, "VolRevLong");
 							highestHigh = High[0];
 						}
@@ -218,6 +248,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 		[Range(1, int.MaxValue)]
 		[Display(Name="ContractSize", Description="Contracts to trade", Order=1, GroupName="Parameters")]
 		public int ContractSize
+		{ get; set; }
+
+		[NinjaScriptProperty]
+		[Display(Name="UseOrderFlow", Description="Filter entries with Up/Down Vol?", Order=1, GroupName="Parameters")]
+		public bool UseOrderFlow
 		{ get; set; }
 
 		[NinjaScriptProperty]
